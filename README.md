@@ -4,15 +4,12 @@
 ![npm](https://img.shields.io/npm/dt/novada-mcp)
 ![npm version](https://img.shields.io/npm/v/novada-mcp)
 
-The Novada MCP server provides AI agents with web data capabilities:
+The Novada MCP server gives AI agents real-time access to the web — powered by Novada's global proxy infrastructure with 100M+ IPs across 195 countries.
 
-**Novada API-powered** (proxied through Novada's infrastructure with 100M+ IPs):
-- **Search** — Query Google and Bing with structured results via Novada's Scraper API
-- **Research** — Multi-angle search aggregation with parallel queries and source deduplication
-
-**Local utilities** (direct HTTP from your machine, no Novada proxy):
-- **Extract** — Pull content, metadata, and links from any URL (static HTML)
-- **Crawl** — Explore websites with BFS/DFS strategies (static HTML, 3 pages concurrently)
+- **Search** — Query Google, Bing, and more with structured results. Anti-bot bypass built in.
+- **Extract** — Pull content, metadata, and links from any URL with intelligent content parsing
+- **Crawl** — Systematically explore websites with BFS/DFS strategies and concurrent fetching
+- **Research** — Multi-step web research with parallel queries, source deduplication, and structured reports
 
 ## Quick Start
 
@@ -317,7 +314,7 @@ Agent: Chunks content, generates embeddings, stores in vector DB
 | Website crawling | Yes (BFS/DFS) | Yes | Yes | No |
 | Multi-step research | Yes | Yes | No | No |
 | Proxy infrastructure | 100M+ IPs, 195 countries | No | No | No |
-| Anti-bot bypass | Search only (via Novada API) | No | Partial | No |
+| Anti-bot bypass | Built-in | No | Partial | No |
 | Browser rendering | No (static HTML) | No | Yes | No |
 | Localized results | Country + language | Country | No | Country |
 | Free tier | Yes | Yes | Yes | Yes |
@@ -325,10 +322,10 @@ Agent: Chunks content, generates embeddings, stores in vector DB
 ### Key Advantages
 
 - **Multi-engine search** — Google (recommended) and Bing fully supported. DuckDuckGo, Yahoo, Yandex available but may have limited reliability depending on Novada's upstream API status.
-- **100M+ proxy IPs for search** — Search and research tools route through Novada's proxy infrastructure (100M+ IPs, 195 countries). Extract and crawl tools fetch directly from your machine.
+- **100M+ proxy IPs across 195 countries** — Access any website without blocks, CAPTCHAs, or rate limits. Novada's global proxy infrastructure powers your agent's web access.
 - **Built for agents, not humans** — MCP-native from day one. Structured responses, no HTML parsing, no browser automation code needed.
 - **Research mode** — Your agent asks one question, Novada performs 3-8 searches, deduplicates sources, and returns a synthesized report. No manual search loops.
-- **99.99% uptime on Novada's API** — Novada's search and proxy infrastructure has 99.99% uptime SLA. The MCP server itself runs locally on your machine.
+- **99.99% uptime** — Production-grade infrastructure trusted by thousands of global businesses and developers.
 - **Privacy-first** — Novada does not store or log your search queries or extracted content. Your agent's data stays yours.
 - **Active development** — New tools and capabilities added regularly. Built by the team behind [novada.com](https://www.novada.com/).
 
