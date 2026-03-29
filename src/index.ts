@@ -14,6 +14,142 @@ const API_KEY = process.env.NOVADA_API_KEY;
 const SCRAPER_API_BASE = "https://scraperapi.novada.com";
 const USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+const MAX_RETRIES = 3;
+const RETRY_BASE_DELAY_MS = 1000;
+
+// ─── Utility Functions ───────────────────────────────────────────────────────
+
+/** Normalize a URL for deduplication: strip trailing slash, www, fragment, sort params */
+function normalizeUrl(urlStr: string): string {
+  try {
+    const u = new URL(urlStr);
+    u.hash = "";
+    u.hostname = u.hostname.replace(/^www\./, "");
+    let path = u.pathname.replace(/\/+$/, "") || "/";
+    u.pathname = path;
+    u.searchParams.sort();
+    return u.toString();
+  } catch {
+    return urlStr;
+  }
+}
+
+/** Filter out boilerplate links (assets, tracking, auth, etc.) */
+function isContentLink(href: string, pageHostname: string): boolean {
+  try {
+    const u = new URL(href);
+    const ext = u.pathname.split(".").pop()?.toLowerCase() || "";
+    const assetExts = [
+      "css", "js", "png", "jpg", "jpeg", "gif", "svg", "ico", "woff", "woff2",
+      "ttf", "eot", "map", "xml", "rss", "atom", "json",
+    ];
+    if (assetExts.includes(ext)) return false;
+
+    const boilerplateHosts = [
+      "fonts.googleapis.com", "fonts.gstatic.com", "cdn.jsdelivr.net",
+      "cdnjs.cloudflare.com", "unpkg.com", "ajax.googleapis.com",
+      "github.githubassets.com", "avatars.githubusercontent.com",
+      "collector.github.com", "api.github.com",
+      "googletagmanager.com", "google-analytics.com", "facebook.com",
+      "twitter.com", "linkedin.com",
+    ];
+    if (boilerplateHosts.some((h) => u.hostname.includes(h))) return false;
+
+    // Skip login/auth/settings paths
+    const skipPaths = ["/login", "/signup", "/auth", "/oauth", "/settings"];
+    if (skipPaths.some((p) => u.pathname.startsWith(p))) return false;
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Extract main content using a readability-like approach */
+function extractMainContent(html: string): string {
+  // Remove non-content elements
+  let cleaned = html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, "")
+    .replace(/<!--[\s\S]*?-->/g, "");
+
+  // Try to find main content area
+  const contentSelectors = [
+    /<main[^>]*>([\s\S]*?)<\/main>/i,
+    /<article[^>]*>([\s\S]*?)<\/article>/i,
+    /<div[^>]*(?:class|id)=["'][^"']*(?:content|article|post|entry|main|body)[^"']*["'][^>]*>([\s\S]*?)<\/div>/i,
+  ];
+
+  let mainContent = "";
+  for (const selector of contentSelectors) {
+    const match = cleaned.match(selector);
+    if (match && match[1] && match[1].length > 200) {
+      mainContent = match[1];
+      break;
+    }
+  }
+
+  // Fallback: remove nav, header, footer, sidebar, then use body
+  if (!mainContent) {
+    mainContent = cleaned
+      .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, "")
+      .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, "")
+      .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, "")
+      .replace(/<aside[^>]*>[\s\S]*?<\/aside>/gi, "")
+      .replace(/<div[^>]*(?:class|id)=["'][^"']*(?:sidebar|menu|nav|footer|header|cookie|banner|popup|modal|ad-|advertisement)[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, "");
+  }
+
+  // Convert some HTML to markdown-like text
+  mainContent = mainContent
+    .replace(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi, (_, level, text) => {
+      const prefix = "#".repeat(parseInt(level));
+      return `\n${prefix} ${text.replace(/<[^>]+>/g, "").trim()}\n`;
+    })
+    .replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (_, text) => `- ${text.replace(/<[^>]+>/g, "").trim()}\n`)
+    .replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, (_, text) => `\n${text.replace(/<[^>]+>/g, "").trim()}\n`)
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]+/g, " ")
+    .trim();
+
+  return mainContent.slice(0, 8000);
+}
+
+/** HTTP request with exponential backoff retry */
+async function fetchWithRetry(
+  url: string,
+  options: Record<string, unknown> = {},
+  retries: number = MAX_RETRIES
+): Promise<any> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await axios.get(url, {
+        headers: { "User-Agent": USER_AGENT },
+        timeout: 30000,
+        maxRedirects: 5,
+        ...options,
+      } as any);
+    } catch (error) {
+      if (attempt === retries) throw error;
+      const isRetryable =
+        error instanceof AxiosError &&
+        (error.response?.status === 429 ||
+          error.response?.status === 503 ||
+          !error.response);
+      if (!isRetryable) throw error;
+      const delay = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+}
 
 // ─── Tool Definitions ────────────────────────────────────────────────────────
 
@@ -31,7 +167,7 @@ const TOOLS = [
         },
         engine: {
           type: "string",
-          description: "Search engine to use",
+          description: "Search engine to use. Google is recommended for best relevance. Bing results may vary in quality.",
           enum: ["google", "bing", "duckduckgo", "yahoo", "yandex"],
           default: "google",
         },
@@ -60,7 +196,7 @@ const TOOLS = [
   {
     name: "novada_extract",
     description:
-      "Extract content from a single URL. Returns the page title, description, main text content, and links. Useful for reading articles, documentation, or any web page.",
+      "Extract content from a single URL. Returns the page title, description, main text content, and meaningful links. Uses readability-based extraction to get article body, not boilerplate. Note: works best with server-rendered pages; JavaScript-heavy SPAs may return incomplete content.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -81,7 +217,7 @@ const TOOLS = [
   {
     name: "novada_crawl",
     description:
-      "Crawl a website starting from a seed URL. Discovers and extracts content from multiple pages following links. Useful for mapping site structure or collecting content from an entire section.",
+      "Crawl a website starting from a seed URL. Discovers and extracts content from multiple pages following links on the same domain. Note: static HTML crawling — JavaScript-rendered pages may return incomplete content.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -110,7 +246,7 @@ const TOOLS = [
   {
     name: "novada_research",
     description:
-      "Conduct multi-step web research on a topic. Performs multiple searches, synthesizes findings, and returns a comprehensive report with sources. Best for complex questions that need information from multiple sources.",
+      "Conduct multi-step web research on a topic. Generates diverse search queries, performs multiple searches, deduplicates sources, and returns a comprehensive report. Best for complex questions that need information from multiple angles.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -122,7 +258,7 @@ const TOOLS = [
         depth: {
           type: "string",
           description:
-            "Research depth: 'quick' does 2-3 searches, 'deep' does 5-8 searches for more thorough coverage",
+            "Research depth: 'quick' does 3 searches, 'deep' does 5-6 searches with more diverse angles",
           enum: ["quick", "deep"],
           default: "quick",
         },
@@ -132,7 +268,7 @@ const TOOLS = [
   },
 ];
 
-// ─── API Helpers ─────────────────────────────────────────────────────────────
+// ─── Tool Implementations ────────────────────────────────────────────────────
 
 async function novadaSearch(params: {
   query: string;
@@ -147,17 +283,25 @@ async function novadaSearch(params: {
     );
   }
 
+  const engine = params.engine || "google";
   const searchParams = new URLSearchParams({
     q: params.query,
     api_key: API_KEY,
-    engine: params.engine || "google",
+    engine,
     num: String(params.num || 10),
   });
 
-  if (params.country) searchParams.set("country", params.country);
-  if (params.language) searchParams.set("language", params.language);
+  // Fix Bing: force English locale to avoid irrelevant localized results
+  if (engine === "bing") {
+    searchParams.set("country", params.country || "us");
+    searchParams.set("language", params.language || "en");
+    searchParams.set("mkt", params.language ? `${params.language}-${(params.country || "us").toUpperCase()}` : "en-US");
+  } else {
+    if (params.country) searchParams.set("country", params.country);
+    if (params.language) searchParams.set("language", params.language);
+  }
 
-  const response = await axios.get(
+  const response = await fetchWithRetry(
     `${SCRAPER_API_BASE}/search?${searchParams.toString()}`,
     {
       headers: {
@@ -165,13 +309,11 @@ async function novadaSearch(params: {
         Origin: "https://www.novada.com",
         Referer: "https://www.novada.com/",
       },
-      timeout: 30000,
     }
   );
 
   const data = response.data;
 
-  // Novada always returns HTTP 200; check data.code
   if (data.code && data.code !== 200 && data.code !== 0) {
     throw new Error(
       `Novada API error (code ${data.code}): ${data.msg || "Unknown error"}`
@@ -183,11 +325,36 @@ async function novadaSearch(params: {
     return "No results found for this query.";
   }
 
+  // Clean URLs: unwrap Bing redirect wrappers
   return results
-    .map(
-      (r: any, i: number) =>
-        `${i + 1}. **${r.title || "Untitled"}**\n   URL: ${r.url || r.link || "N/A"}\n   ${r.description || r.snippet || "No description"}`
-    )
+    .map((r: any, i: number) => {
+      let url = r.url || r.link || "N/A";
+      // Bing wraps URLs in redirect or base64 encoding
+      if (url.includes("bing.com/ck/a") || url.includes("r.bing.com")) {
+        try {
+          const u = new URL(url);
+          const realUrl = u.searchParams.get("r") || u.searchParams.get("u");
+          if (realUrl) {
+            const cleaned = realUrl.replace(/^a1/, "");
+            // Try base64 decode first, then URI decode
+            try {
+              url = Buffer.from(cleaned, "base64").toString("utf8");
+              if (!url.startsWith("http")) url = decodeURIComponent(cleaned);
+            } catch {
+              url = decodeURIComponent(cleaned);
+            }
+          }
+        } catch { /* keep original URL */ }
+      }
+      // Handle raw base64-encoded URLs (no wrapper)
+      if (!url.startsWith("http") && /^[A-Za-z0-9+/=]+$/.test(url) && url.length > 20) {
+        try {
+          const decoded = Buffer.from(url, "base64").toString("utf8");
+          if (decoded.startsWith("http")) url = decoded;
+        } catch { /* keep original */ }
+      }
+      return `${i + 1}. **${r.title || "Untitled"}**\n   URL: ${url}\n   ${r.description || r.snippet || "No description"}`;
+    })
     .join("\n\n");
 }
 
@@ -201,48 +368,40 @@ async function novadaExtract(params: {
     );
   }
 
-  // Use HTTP fetch for extraction (Browser API WSS is optional premium feature)
-  const response = await axios.get(params.url, {
-    headers: {
-      "User-Agent": USER_AGENT,
-    },
-    timeout: 30000,
-    maxRedirects: 5,
-  });
+  const response = await fetchWithRetry(params.url);
+  const html: string = response.data;
 
-  const html = response.data;
-  const title = html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1] || "Untitled";
+  if (typeof html !== "string") {
+    throw new Error("Response is not HTML. The URL may return JSON or binary data.");
+  }
+
+  const title = html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim() || "Untitled";
   const description =
     html.match(
       /<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i
     )?.[1] || "";
 
-  // Strip HTML tags for text extraction
-  const textContent = html
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-    .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, "")
-    .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, "")
-    .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, "")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 8000);
-
-  // Extract links
-  const linkMatches = html.matchAll(/href=["'](https?:\/\/[^"']+)["']/gi);
-  const links = [...new Set([...linkMatches].map((m) => m[1]).slice(0, 20))];
-
   if (params.format === "html") {
     return html.slice(0, 10000);
   }
 
+  // Use readability-based content extraction
+  const mainContent = extractMainContent(html);
+
+  // Extract meaningful links only (no CSS, JS, tracking, assets)
+  const pageHostname = new URL(params.url).hostname;
+  const linkMatches = html.matchAll(/href=["'](https?:\/\/[^"'#]+)["']/gi);
+  const allLinks = [...linkMatches].map((m) => m[1]);
+  const meaningfulLinks = [
+    ...new Set(allLinks.filter((href) => isContentLink(href, pageHostname))),
+  ].slice(0, 20);
+
   return [
     `# ${title}`,
     description ? `\n> ${description}` : "",
-    `\n## Content\n\n${textContent}`,
-    links.length > 0
-      ? `\n## Links (${links.length})\n\n${links.map((l) => `- ${l}`).join("\n")}`
+    `\n## Content\n\n${mainContent}`,
+    meaningfulLinks.length > 0
+      ? `\n## Links (${meaningfulLinks.length})\n\n${meaningfulLinks.map((l) => `- ${l}`).join("\n")}`
       : "",
   ]
     .filter(Boolean)
@@ -270,49 +429,49 @@ async function novadaCrawl(params: {
     title: string;
     text: string;
     depth: number;
+    wordCount: number;
   }[] = [];
+  const baseUrl = new URL(params.url);
+  const baseHostname = baseUrl.hostname.replace(/^www\./, "");
 
-  while (queue.length > 0 && visited.size < maxPages) {
+  while (queue.length > 0 && results.length < maxPages) {
     const item =
       params.strategy === "dfs" ? queue.pop()! : queue.shift()!;
 
-    if (visited.has(item.url)) continue;
-    visited.add(item.url);
+    // Normalize URL for dedup
+    const normalizedUrl = normalizeUrl(item.url);
+    if (visited.has(normalizedUrl)) continue;
+    visited.add(normalizedUrl);
 
     try {
-      const response = await axios.get(item.url, {
-        headers: { "User-Agent": USER_AGENT },
-        timeout: 15000,
-        maxRedirects: 3,
-      });
-
+      const response = await fetchWithRetry(item.url, { timeout: 15000, maxRedirects: 3 });
       const html = response.data;
       if (typeof html !== "string") continue;
 
       const title =
-        html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1] || "Untitled";
-      const text = html
-        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-        .replace(/<[^>]+>/g, " ")
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 2000);
+        html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim() || "Untitled";
 
-      results.push({ url: item.url, title, text, depth: item.depth });
+      const text = extractMainContent(html).slice(0, 3000);
+      const wordCount = text.split(/\s+/).filter(Boolean).length;
+
+      // Skip near-empty pages
+      if (wordCount < 20) continue;
+
+      results.push({ url: item.url, title, text, depth: item.depth, wordCount });
 
       // Discover links on same domain
-      const baseUrl = new URL(params.url);
       const linkMatches = html.matchAll(
         /href=["'](https?:\/\/[^"'#]+)["']/gi
       );
       for (const match of linkMatches) {
         try {
           const linkUrl = new URL(match[1]);
+          const linkHostname = linkUrl.hostname.replace(/^www\./, "");
+          const normalizedLink = normalizeUrl(linkUrl.href);
           if (
-            linkUrl.hostname === baseUrl.hostname &&
-            !visited.has(linkUrl.href) &&
-            visited.size + queue.length < maxPages * 2
+            linkHostname === baseHostname &&
+            !visited.has(normalizedLink) &&
+            isContentLink(linkUrl.href, baseHostname)
           ) {
             queue.push({ url: linkUrl.href, depth: item.depth + 1 });
           }
@@ -329,12 +488,14 @@ async function novadaCrawl(params: {
     return `Failed to crawl ${params.url}. The site may be unreachable or blocking automated access.`;
   }
 
+  const totalWords = results.reduce((sum, r) => sum + r.wordCount, 0);
+
   return [
     `# Crawl Results for ${params.url}`,
-    `\nPages crawled: ${results.length} | Strategy: ${params.strategy || "bfs"}\n`,
+    `\nPages crawled: ${results.length}/${maxPages} | Strategy: ${params.strategy || "bfs"} | Total words: ${totalWords}\n`,
     ...results.map(
       (r) =>
-        `## ${r.title}\n**URL:** ${r.url} | **Depth:** ${r.depth}\n\n${r.text}\n`
+        `## ${r.title}\n**URL:** ${r.url} | **Depth:** ${r.depth} | **Words:** ${r.wordCount}\n\n${r.text}\n`
     ),
   ].join("\n");
 }
@@ -353,13 +514,10 @@ async function novadaResearch(params: {
     throw new Error("Research question must be at least 5 characters long.");
   }
 
-  const numSearches = params.depth === "deep" ? 5 : 3;
+  const isDeep = params.depth === "deep";
+  const queries = generateSearchQueries(params.question, isDeep);
   const allResults: { query: string; results: any[] }[] = [];
 
-  // Generate search queries from the research question
-  const queries = generateSearchQueries(params.question, numSearches);
-
-  // Execute searches
   for (const query of queries) {
     try {
       const searchParams = new URLSearchParams({
@@ -369,7 +527,7 @@ async function novadaResearch(params: {
         num: "5",
       });
 
-      const response = await axios.get(
+      const response = await fetchWithRetry(
         `${SCRAPER_API_BASE}/search?${searchParams.toString()}`,
         {
           headers: {
@@ -377,7 +535,6 @@ async function novadaResearch(params: {
             Origin: "https://www.novada.com",
             Referer: "https://www.novada.com/",
           },
-          timeout: 30000,
         }
       );
 
@@ -390,20 +547,22 @@ async function novadaResearch(params: {
     }
   }
 
-  // Compile research report
   const totalResults = allResults.reduce(
     (sum, r) => sum + r.results.length,
     0
   );
-  const uniqueSources = new Map<string, { title: string; url: string; snippet: string }>();
+  const uniqueSources = new Map<
+    string,
+    { title: string; url: string; snippet: string }
+  >();
 
   for (const { results } of allResults) {
     for (const r of results) {
-      const url = r.url || r.link;
+      const url = normalizeUrl(r.url || r.link || "");
       if (url && !uniqueSources.has(url)) {
         uniqueSources.set(url, {
           title: r.title || "Untitled",
-          url,
+          url: r.url || r.link,
           snippet: r.description || r.snippet || "",
         });
       }
@@ -428,24 +587,41 @@ async function novadaResearch(params: {
   ].join("\n");
 }
 
-function generateSearchQueries(question: string, count: number): string[] {
-  const queries = [question];
-
-  // Generate variations for broader coverage
+/** Generate diverse search queries instead of just appending suffixes */
+function generateSearchQueries(question: string, deep: boolean): string[] {
+  const queries: string[] = [question];
   const words = question.toLowerCase().split(/\s+/);
+  const topic = question.replace(/[?!.]+$/, "").trim();
+
+  // Extract key noun phrases (simple heuristic)
+  const stopWords = new Set([
+    "what", "how", "why", "when", "where", "who", "which", "is", "are", "do",
+    "does", "the", "a", "an", "in", "on", "at", "to", "for", "of", "with",
+    "and", "or", "but", "can", "will", "should", "would", "could",
+  ]);
+  const keywords = words.filter((w) => !stopWords.has(w) && w.length > 2);
+  const keyPhrase = keywords.slice(0, 4).join(" ");
+
   if (words.length > 3) {
-    queries.push(`${question} latest 2025 2026`);
-    queries.push(`${question} comparison review`);
-    if (count >= 4) queries.push(`${question} alternatives`);
-    if (count >= 5) queries.push(`${question} best practices guide`);
+    // Rephrase for different angles
+    queries.push(`${keyPhrase} overview explained`);
+    queries.push(`${keyPhrase} vs alternatives comparison`);
+    if (deep) {
+      queries.push(`${keyPhrase} best practices real world`);
+      queries.push(`${keyPhrase} challenges limitations`);
+      queries.push(`"${keywords[0]}" "${keywords[1] || keywords[0]}" site:reddit.com OR site:news.ycombinator.com`);
+    }
   } else {
-    queries.push(`what is ${question}`);
-    queries.push(`${question} explained`);
-    if (count >= 4) queries.push(`${question} examples`);
-    if (count >= 5) queries.push(`${question} tutorial`);
+    queries.push(`"${topic}" explained overview`);
+    queries.push(`${topic} vs alternatives`);
+    if (deep) {
+      queries.push(`${topic} examples use cases`);
+      queries.push(`${topic} review experience`);
+      queries.push(`${topic} site:reddit.com OR site:news.ycombinator.com`);
+    }
   }
 
-  return queries.slice(0, count);
+  return queries;
 }
 
 // ─── MCP Server ──────────────────────────────────────────────────────────────
@@ -455,7 +631,7 @@ class NovadaMCPServer {
 
   constructor() {
     this.server = new Server(
-      { name: "novada-mcp", version: "0.1.0" },
+      { name: "novada-mcp", version: "0.2.0" },
       { capabilities: { tools: {} } }
     );
 
@@ -463,12 +639,10 @@ class NovadaMCPServer {
   }
 
   private setupHandlers(): void {
-    // List available tools
     this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
       tools: TOOLS,
     }));
 
-    // Handle tool calls
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
 
@@ -522,7 +696,7 @@ class NovadaMCPServer {
   async run(): Promise<void> {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    console.error("Novada MCP server running on stdio");
+    console.error("Novada MCP server v0.2.0 running on stdio");
   }
 }
 
@@ -531,7 +705,6 @@ class NovadaMCPServer {
 const args = process.argv.slice(2);
 
 if (args.includes("--list-tools")) {
-  console.log("Available tools:");
   for (const tool of TOOLS) {
     console.log(`  ${tool.name} — ${tool.description.split(".")[0]}`);
   }
@@ -539,7 +712,7 @@ if (args.includes("--list-tools")) {
 }
 
 if (args.includes("--help") || args.includes("-h")) {
-  console.log(`novada-mcp — MCP Server for Novada web data API
+  console.log(`novada-mcp v0.2.0 — MCP Server for Novada web data API
 
 Usage:
   npx novada-mcp              Start the MCP server (stdio transport)
@@ -555,8 +728,8 @@ Connect to Claude Code:
 
 Tools:
   novada_search    Search the web via Google, Bing, and more
-  novada_extract   Extract content from any URL
-  novada_crawl     Crawl a website (BFS/DFS)
+  novada_extract   Extract content from any URL (static HTML)
+  novada_crawl     Crawl a website (BFS/DFS, static HTML)
   novada_research  Multi-step web research with synthesis
 `);
   process.exit(0);
