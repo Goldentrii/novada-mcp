@@ -3,16 +3,13 @@ import { SCRAPER_API_BASE } from "../config.js";
 import type { ResearchParams, NovadaApiResponse, NovadaSearchResult } from "./types.js";
 
 export async function novadaResearch(params: ResearchParams, apiKey: string): Promise<string> {
-  if (params.question.length < 5) {
-    throw new Error("Research question must be at least 5 characters long.");
-  }
-
+  // Zod schema enforces min(5) — no redundant check needed here
   const isDeep = params.depth === "deep";
   const queries = generateSearchQueries(params.question, isDeep);
 
   // Execute all searches in parallel
   const allResults = await Promise.all(
-    queries.map(async (query): Promise<{ query: string; results: NovadaSearchResult[] }> => {
+    queries.map(async (query): Promise<{ query: string; results: NovadaSearchResult[]; failed?: boolean }> => {
       try {
         const searchParams = new URLSearchParams({
           q: query,
@@ -36,12 +33,13 @@ export async function novadaResearch(params: ResearchParams, apiKey: string): Pr
         const results: NovadaSearchResult[] = data.data?.organic_results || data.organic_results || [];
         return { query, results };
       } catch {
-        return { query, results: [] };
+        return { query, results: [], failed: true };
       }
     })
   );
 
-  // Deduplicate sources by normalized URL
+  // Count successes and failures
+  const failedCount = allResults.filter((r) => r.failed).length;
   const totalResults = allResults.reduce((sum, r) => sum + r.results.length, 0);
   const uniqueSources = new Map<string, { title: string; url: string; snippet: string }>();
 
@@ -63,7 +61,7 @@ export async function novadaResearch(params: ResearchParams, apiKey: string): Pr
 
   return [
     `# Research Report: ${params.question}`,
-    `\n**Depth:** ${params.depth || "quick"} | **Searches:** ${queries.length} | **Results found:** ${totalResults} | **Unique sources:** ${sources.length}\n`,
+    `\n**Depth:** ${params.depth || "quick"} | **Searches:** ${queries.length}${failedCount > 0 ? ` (${failedCount} failed)` : ""} | **Results found:** ${totalResults} | **Unique sources:** ${sources.length}\n`,
     `## Search Queries Used\n`,
     ...queries.map((q, i) => `${i + 1}. ${q}`),
     `\n## Key Findings\n`,
@@ -89,15 +87,22 @@ function generateSearchQueries(question: string, deep: boolean): string[] {
   const words = question.toLowerCase().split(/\s+/);
   const topic = question.replace(/[?!.]+$/, "").trim();
   const keywords = words.filter((w) => !STOP_WORDS.has(w) && w.length > 2);
-  const keyPhrase = keywords.slice(0, 4).join(" ");
+  const keyPhrase = keywords.slice(0, 4).join(" ") || topic;
 
-  if (words.length > 3) {
+  if (keywords.length > 2) {
     queries.push(`${keyPhrase} overview explained`);
     queries.push(`${keyPhrase} vs alternatives comparison`);
     if (deep) {
       queries.push(`${keyPhrase} best practices real world`);
       queries.push(`${keyPhrase} challenges limitations`);
-      queries.push(`"${keywords[0]}" "${keywords[1] || keywords[0]}" site:reddit.com OR site:news.ycombinator.com`);
+      // Guard against empty keywords array
+      if (keywords.length >= 2) {
+        queries.push(`"${keywords[0]}" "${keywords[1]}" site:reddit.com OR site:news.ycombinator.com`);
+      } else if (keywords.length === 1) {
+        queries.push(`"${keywords[0]}" site:reddit.com OR site:news.ycombinator.com`);
+      } else {
+        queries.push(`${topic} site:reddit.com OR site:news.ycombinator.com`);
+      }
     }
   } else {
     queries.push(`"${topic}" explained overview`);

@@ -1,78 +1,176 @@
-/** Extract main content using a readability-like approach */
+import * as cheerio from "cheerio";
+
+/** Elements to completely remove before content extraction */
+const REMOVE_TAGS = [
+  "script", "style", "noscript", "svg", "iframe", "nav", "footer",
+  "header", "aside", "form",
+];
+
+/** CSS selectors for boilerplate regions to remove */
+const BOILERPLATE_SELECTORS = [
+  "[class*='sidebar']", "[id*='sidebar']",
+  "[class*='menu']", "[id*='menu']",
+  "[class*='cookie']", "[id*='cookie']",
+  "[class*='banner']", "[id*='banner']",
+  "[class*='popup']", "[id*='popup']",
+  "[class*='modal']", "[id*='modal']",
+  "[class*='ad-']", "[class*='advertisement']",
+  "[class*='footer']", "[id*='footer']",
+  "[class*='header']", "[id*='header']",
+  "[role='navigation']", "[role='banner']", "[role='contentinfo']",
+];
+
+/** Content area selectors in priority order */
+const CONTENT_SELECTORS = [
+  "main",
+  "article",
+  "[role='main']",
+  "[class*='content']",
+  "[class*='article']",
+  "[class*='post']",
+  "[class*='entry']",
+  "[id*='content']",
+  "[id*='article']",
+];
+
+/**
+ * Extract main content from HTML using cheerio.
+ * Tries semantic selectors first, falls back to boilerplate removal.
+ */
 export function extractMainContent(html: string): string {
+  if (!html || !html.trim()) return "";
+
+  const $ = cheerio.load(html);
+
   // Remove non-content elements
-  let cleaned = html
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
-    .replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, "")
-    .replace(/<!--[\s\S]*?-->/g, "");
+  for (const tag of REMOVE_TAGS) {
+    $(tag).remove();
+  }
 
-  // Try to find main content area (order: main > article > content div)
-  const contentSelectors = [
-    /<main[^>]*>([\s\S]*?)<\/main>/i,
-    /<article[^>]*>([\s\S]*?)<\/article>/i,
-    /<div[^>]*(?:class|id)=["'][^"']*(?:content|article|post|entry|main|body)[^"']*["'][^>]*>([\s\S]*?)<\/div>/i,
-  ];
+  // Remove comments
+  $("*").contents().filter(function () {
+    return this.type === "comment";
+  }).remove();
 
-  let mainContent = "";
-  for (const selector of contentSelectors) {
-    const match = cleaned.match(selector);
-    if (match && match[1] && match[1].length > 200) {
-      mainContent = match[1];
+  // Try semantic content selectors
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let $content: any = null;
+  for (const selector of CONTENT_SELECTORS) {
+    const $el = $(selector).first();
+    if ($el.length && ($el.text() || "").trim().length > 200) {
+      $content = $el;
       break;
     }
   }
 
-  // Fallback: remove boilerplate regions
-  if (!mainContent) {
-    mainContent = cleaned
-      .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, "")
-      .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, "")
-      .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, "")
-      .replace(/<aside[^>]*>[\s\S]*?<\/aside>/gi, "")
-      .replace(/<div[^>]*(?:class|id)=["'][^"']*(?:sidebar|menu|nav|footer|header|cookie|banner|popup|modal|ad-|advertisement)[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, "");
+  // Fallback: use body with boilerplate removed
+  if (!$content) {
+    for (const selector of BOILERPLATE_SELECTORS) {
+      $(selector).remove();
+    }
+    $content = $("body");
   }
 
-  // Convert HTML structure to markdown-like text
-  mainContent = mainContent
-    .replace(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi, (_, level, text) => {
-      const prefix = "#".repeat(parseInt(level));
-      return `\n${prefix} ${stripTags(text).trim()}\n`;
-    })
-    .replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, (_, text) => `- ${stripTags(text).trim()}\n`)
-    .replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, (_, text) => `\n${stripTags(text).trim()}\n`)
-    .replace(/<br\s*\/?>/gi, "\n");
+  if (!$content || !$content.length) return "";
 
-  // Final cleanup
-  mainContent = stripTags(mainContent)
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
-    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec)))
+  // Convert to markdown-like text
+  const lines: string[] = [];
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // Exclude td/th — tables handled separately below to avoid duplication
+  $content.find("h1, h2, h3, h4, h5, h6, p, li, blockquote, pre, dt, dd").filter((_: number, el: any) => {
+    // Skip elements inside tables to prevent duplicate content
+    return $(el).parents("table").length === 0 || ["dt", "dd"].includes((el.tagName || "").toLowerCase());
+  }).each((_: number, el: any) => {
+    const $el = $(el);
+    const tag = (el.tagName || "").toLowerCase();
+    const text = $el.text().replace(/\s+/g, " ").trim();
+    if (!text) return;
+
+    if (tag.match(/^h[1-6]$/)) {
+      const level = parseInt(tag[1]);
+      lines.push(`\n${"#".repeat(level)} ${text}\n`);
+    } else if (tag === "li") {
+      lines.push(`- ${text}`);
+    } else if (tag === "blockquote") {
+      lines.push(`> ${text}`);
+    } else if (tag === "pre") {
+      lines.push(`\`\`\`\n${text}\n\`\`\``);
+    } else {
+      lines.push(text);
+    }
+  });
+
+  // Handle tables as markdown tables
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  $content.find("table").each((_: number, table: any) => {
+    const $table = $(table);
+    const rows: string[][] = [];
+    $table.find("tr").each((_, tr) => {
+      const cells: string[] = [];
+      $(tr).find("th, td").each((__, cell) => {
+        cells.push($(cell).text().replace(/\s+/g, " ").trim());
+      });
+      if (cells.length) rows.push(cells);
+    });
+    if (rows.length) {
+      const header = `| ${rows[0].join(" | ")} |`;
+      const separator = `| ${rows[0].map(() => "---").join(" | ")} |`;
+      const body = rows.slice(1).map(r => `| ${r.join(" | ")} |`).join("\n");
+      lines.push(`\n${header}\n${separator}\n${body}\n`);
+    }
+  });
+
+  const result = lines.join("\n")
     .replace(/\n{3,}/g, "\n\n")
-    .replace(/[ \t]+/g, " ")
     .trim();
 
-  return mainContent.slice(0, 8000);
-}
-
-/** Strip all HTML tags from a string */
-function stripTags(html: string): string {
-  return html.replace(/<[^>]+>/g, " ");
+  return result.slice(0, 8000);
 }
 
 /** Extract page title from HTML */
 export function extractTitle(html: string): string {
-  return html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim() || "Untitled";
+  if (!html) return "Untitled";
+  const $ = cheerio.load(html);
+  return $("title").first().text().trim() || $("h1").first().text().trim() || "Untitled";
 }
 
 /** Extract meta description from HTML */
 export function extractDescription(html: string): string {
-  return html.match(
-    /<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i
-  )?.[1] || "";
+  if (!html) return "";
+  const $ = cheerio.load(html);
+  return (
+    $('meta[name="description"]').attr("content") ||
+    $('meta[property="og:description"]').attr("content") ||
+    ""
+  ).trim();
+}
+
+/** Extract all meaningful links from HTML */
+export function extractLinks(html: string, baseUrl?: string): string[] {
+  if (!html) return [];
+  const $ = cheerio.load(html);
+  const links = new Set<string>();
+
+  $("a[href]").each((_, el) => {
+    const href = $(el).attr("href");
+    if (!href) return;
+    // Skip anchors, javascript, mailto
+    if (href.startsWith("#") || href.startsWith("javascript:") || href.startsWith("mailto:")) return;
+
+    let fullUrl = href;
+    if (href.startsWith("//")) {
+      fullUrl = `https:${href}`;
+    } else if (baseUrl && !href.startsWith("http")) {
+      // Resolve relative URLs (both /absolute and relative paths)
+      try { fullUrl = new URL(href, baseUrl).href; }
+      catch { return; }
+    }
+
+    if (fullUrl.startsWith("http")) {
+      links.add(fullUrl);
+    }
+  });
+
+  return [...links].slice(0, 50);
 }

@@ -1,360 +1,341 @@
-# Novada MCP Server
+<p align="center">
+  <h1 align="center">Novada MCP Server</h1>
+  <p align="center"><strong>Search, extract, crawl, map, and research the web — from any AI agent or terminal.</strong></p>
+  <p align="center">Powered by <a href="https://www.novada.com">novada.com</a> — 100M+ proxy IPs across 195 countries.</p>
+</p>
 
-![GitHub Repo stars](https://img.shields.io/github/stars/Goldentrii/novada-mcp?style=social)
-![npm](https://img.shields.io/npm/dt/novada-mcp)
-![npm version](https://img.shields.io/npm/v/novada-mcp)
+<p align="center">
+  <a href="https://www.novada.com"><img src="https://img.shields.io/badge/novada.com-API_Key-ff6b35?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiLz48L3N2Zz4=" alt="novada.com"></a>
+  <a href="https://www.npmjs.com/package/novada-mcp"><img src="https://img.shields.io/npm/v/novada-mcp?style=for-the-badge&label=MCP&color=blue" alt="npm version"></a>
+  <a href="#tools"><img src="https://img.shields.io/badge/tools-5-brightgreen?style=for-the-badge" alt="5 tools"></a>
+  <a href="#novada_search"><img src="https://img.shields.io/badge/engines-5-orange?style=for-the-badge" alt="5 engines"></a>
+  <a href="#nova--try-it-in-10-seconds"><img src="https://img.shields.io/badge/CLI-nova-blueviolet?style=for-the-badge" alt="CLI nova"></a>
+  <a href="https://www.novada.com"><img src="https://img.shields.io/badge/proxy_IPs-100M+-red?style=for-the-badge" alt="100M+ proxy IPs"></a>
+  <a href="https://www.novada.com"><img src="https://img.shields.io/badge/countries-195-cyan?style=for-the-badge" alt="195 countries"></a>
+  <img src="https://img.shields.io/badge/tests-117-green?style=for-the-badge" alt="117 tests">
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/license-MIT-yellow?style=for-the-badge" alt="MIT License"></a>
+</p>
 
-The Novada MCP server gives AI agents real-time access to the web — powered by Novada's global proxy infrastructure with 100M+ IPs across 195 countries.
+<p align="center">
+  <a href="https://www.npmjs.com/package/novada-mcp"><img src="https://img.shields.io/npm/dt/novada-mcp" alt="downloads"></a>
+  <a href="https://github.com/Goldentrii/novada-mcp"><img src="https://img.shields.io/github/stars/Goldentrii/novada-mcp?style=social" alt="stars"></a>
+</p>
 
-- **Search** — Query Google, Bing, and more with structured results. Anti-bot bypass built in.
-- **Extract** — Pull content, metadata, and links from any URL with intelligent content parsing
-- **Crawl** — Systematically explore websites with BFS/DFS strategies and concurrent fetching
-- **Research** — Multi-step web research with parallel queries, source deduplication, and structured reports
+<p align="center">
+  <a href="#nova--try-it-in-10-seconds">Quick Start</a> ·
+  <a href="#tools">Tools</a> ·
+  <a href="#real-output-examples">Examples</a> ·
+  <a href="#use-cases">Use Cases</a> ·
+  <a href="#why-novada">Comparison</a> ·
+  <a href="#nova--try-it-in-10-seconds">CLI</a> ·
+  <a href="#中文文档">中文</a>
+</p>
+
+---
+
+## `nova` — Try It in 10 Seconds
+
+```bash
+npm install -g novada-mcp
+export NOVADA_API_KEY=your-key    # Free at novada.com
+```
+
+<p align="center">
+  <img src="https://img.shields.io/badge/nova_search-query-blue?style=for-the-badge" alt="nova search">
+  <img src="https://img.shields.io/badge/nova_extract-url-green?style=for-the-badge" alt="nova extract">
+  <img src="https://img.shields.io/badge/nova_crawl-url-orange?style=for-the-badge" alt="nova crawl">
+  <img src="https://img.shields.io/badge/nova_map-url-blueviolet?style=for-the-badge" alt="nova map">
+  <img src="https://img.shields.io/badge/nova_research-question-red?style=for-the-badge" alt="nova research">
+</p>
+
+```bash
+nova search "best desserts in Düsseldorf" --country de
+nova extract https://example.com
+nova map https://docs.example.com --search "api"
+nova research "How do AI agents use web scraping?" --depth deep
+```
+
+---
+
+## Real Output Examples
+
+### `nova search "best desserts in Düsseldorf" --country de`
+
+```
+[Results: 4 | Engine: google | Country: de | Via: Novada proxy]
+
+1. **THE BEST Dessert in Düsseldorf**
+   URL: https://www.tripadvisor.com/Restaurants-g187373-zfg9909-Dusseldorf...
+   Dessert in Düsseldorf:
+   1. Heinemann Konditorei Confiserie (4.4★, 298 reviews)
+   2. Eis-Café Pia (4.5★, 182 reviews)
+   3. Cafe Huftgold (4.3★)
+
+2. **Top 10 Best Desserts Near Dusseldorf**
+   URL: https://www.yelp.com/search?cflt=desserts&find_loc=Dusseldorf...
+   1. Namu Café  2. Pure Pastry  3. Tenten Coffee
+   4. Eiscafé Pia  5. Pure ...
+
+3. **Good Dessert Spots : r/duesseldorf**
+   URL: https://www.reddit.com/r/duesseldorf/comments/1mxh4bj/...
+   "I'm moving to Düsseldorf soon and I love trying out desserts!
+    Do you guys know any good spots/cafes?"
+```
+
+Your agent can then **extract** any URL for full details, or **research** deeper:
+
+```bash
+nova extract https://www.tripadvisor.com/Restaurants-g187373-zfg9909-Dusseldorf...
+nova research "best German pastries and cafes in Düsseldorf NRW" --depth deep
+```
+
+### `nova research "How do AI agents use web scraping?" --depth deep`
+
+```
+# Research Report: How do AI agents use web scraping?
+
+**Depth:** deep | **Searches:** 6 | **Results found:** 23 | **Unique sources:** 15
+
+## Key Findings
+1. **How AI Agents Are Changing the Future of Web Scraping**
+   https://medium.com/@davidfagb/...
+   These agents can think, understand, and adjust...
+
+2. **Scaling Web Scraping with Data Streaming, Agentic AI**
+   https://www.confluent.io/blog/real-time-web-scraping/
+   AI Agents iteratively create code, crawl, and scrape at scale...
+
+## Sources
+1. [How AI Agents Are Changing Web Scraping](https://medium.com/...)
+2. [Scaling Web Scraping with Agentic AI](https://www.confluent.io/...)
+```
+
+### Map → Extract Workflow
+
+```bash
+# Step 1: Discover pages
+nova map https://docs.example.com --search "webhook"
+
+# Step 2: Extract what you need
+nova extract https://docs.example.com/webhooks/events
+```
+
+---
 
 ## Quick Start
 
-### Connect to Claude Code
-
-[Claude Code](https://docs.anthropic.com/en/docs/claude-code) is Anthropic's official CLI tool for Claude. Add the Novada MCP server with one command:
+### Claude Code (1 command)
 
 ```bash
-claude mcp add novada -e NOVADA_API_KEY=your-api-key -- npx -y novada-mcp
+claude mcp add novada -e NOVADA_API_KEY=your-key -- npx -y novada-mcp
 ```
 
-Get your Novada API key at [novada.com](https://www.novada.com/).
+`--scope user` for all projects: `claude mcp add --scope user novada -e NOVADA_API_KEY=your-key -- npx -y novada-mcp`
 
-**Tip:** Add `--scope user` to make Novada available across all your projects:
+<details>
+<summary><strong>Cursor / VS Code / Windsurf / Claude Desktop</strong></summary>
 
-```bash
-claude mcp add --scope user novada -e NOVADA_API_KEY=your-api-key -- npx -y novada-mcp
-```
-
-Once configured, you'll have access to `novada_search`, `novada_extract`, `novada_crawl`, and `novada_research` tools.
-
-### Connect to Cursor
-
-Add the following to your `.cursor/mcp.json`:
-
+**Cursor** — `.cursor/mcp.json`:
 ```json
-{
-  "mcpServers": {
-    "novada-mcp": {
-      "command": "npx",
-      "args": ["-y", "novada-mcp@latest"],
-      "env": {
-        "NOVADA_API_KEY": "your-api-key-here"
-      }
-    }
-  }
-}
+{ "mcpServers": { "novada": { "command": "npx", "args": ["-y", "novada-mcp@latest"], "env": { "NOVADA_API_KEY": "your-key" } } } }
 ```
 
-### Connect to VS Code
-
-Add to your VS Code settings (`.vscode/mcp.json`):
-
+**VS Code** — `.vscode/mcp.json`:
 ```json
-{
-  "servers": {
-    "novada": {
-      "command": "npx",
-      "args": ["-y", "novada-mcp@latest"],
-      "env": {
-        "NOVADA_API_KEY": "your-api-key-here"
-      }
-    }
-  }
-}
+{ "servers": { "novada": { "command": "npx", "args": ["-y", "novada-mcp@latest"], "env": { "NOVADA_API_KEY": "your-key" } } } }
 ```
 
-### Connect to Windsurf
-
-Add to your `~/.codeium/windsurf/mcp_config.json`:
-
+**Windsurf** — `~/.codeium/windsurf/mcp_config.json`:
 ```json
-{
-  "mcpServers": {
-    "novada-mcp": {
-      "command": "npx",
-      "args": ["-y", "novada-mcp@latest"],
-      "env": {
-        "NOVADA_API_KEY": "your-api-key-here"
-      }
-    }
-  }
-}
+{ "mcpServers": { "novada": { "command": "npx", "args": ["-y", "novada-mcp@latest"], "env": { "NOVADA_API_KEY": "your-key" } } } }
 ```
 
-### Connect to Claude Desktop
-
-Add to your Claude Desktop config file:
-
-- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
-
+**Claude Desktop** — `~/Library/Application Support/Claude/claude_desktop_config.json`:
 ```json
-{
-  "mcpServers": {
-    "novada": {
-      "command": "npx",
-      "args": ["-y", "novada-mcp@latest"],
-      "env": {
-        "NOVADA_API_KEY": "your-api-key-here"
-      }
-    }
-  }
-}
+{ "mcpServers": { "novada": { "command": "npx", "args": ["-y", "novada-mcp@latest"], "env": { "NOVADA_API_KEY": "your-key" } } } }
 ```
+
+</details>
+
+<details>
+<summary><strong>Python (via CLI)</strong></summary>
+
+```python
+import subprocess, os
+
+result = subprocess.run(
+    ["nova", "search", "AI agent frameworks"],
+    capture_output=True, text=True,
+    env={**os.environ, "NOVADA_API_KEY": "your-key"}
+)
+print(result.stdout)
+```
+
+</details>
+
+---
 
 ## Tools
 
 ### `novada_search`
 
-Search the web using Novada's Scraper API. Returns structured results from multiple search engines.
+Search the web via Google, Bing, or 3 other engines. Returns structured results with titles, URLs, and snippets.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `query` | string | Yes | — | The search query |
-| `engine` | string | No | `"google"` | Search engine: `google`, `bing`, `duckduckgo`, `yahoo`, `yandex` |
-| `num` | number | No | `10` | Number of results (1-20) |
-| `country` | string | No | `""` | Country code for localized results (e.g., `us`, `uk`, `de`) |
-| `language` | string | No | `""` | Language code (e.g., `en`, `zh`, `de`) |
+| `query` | string | Yes | — | Search query |
+| `engine` | string | No | `"google"` | `google` `bing` `duckduckgo` `yahoo` `yandex` |
+| `num` | number | No | `10` | Results count (1-20) |
+| `country` | string | No | — | Country code (`us`, `uk`, `de`) |
+| `language` | string | No | — | Language code (`en`, `zh`, `de`) |
 
 ### `novada_extract`
 
-Extract content from a single URL. Returns title, description, main text, and links.
+Extract the main content from any URL. Returns title, description, body text, and links.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `url` | string | Yes | — | URL to extract content from |
-| `format` | string | No | `"markdown"` | Output format: `text`, `markdown`, `html` |
+| `url` | string | Yes | — | URL to extract |
+| `format` | string | No | `"markdown"` | `markdown` `text` `html` |
 
 ### `novada_crawl`
 
-Crawl a website starting from a seed URL. Discovers and extracts content from multiple pages.
+Crawl a website and extract content from multiple pages concurrently.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `url` | string | Yes | — | Seed URL to start crawling |
-| `max_pages` | number | No | `5` | Max pages to crawl (1-20) |
-| `strategy` | string | No | `"bfs"` | Crawl strategy: `bfs` (breadth-first) or `dfs` (depth-first) |
+| `url` | string | Yes | — | Seed URL |
+| `max_pages` | number | No | `5` | Max pages (1-20) |
+| `strategy` | string | No | `"bfs"` | `bfs` (breadth-first) or `dfs` (depth-first) |
+
+### `novada_map`
+
+Discover all URLs on a website. Fast — collects links without extracting content.
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `url` | string | Yes | — | Root URL |
+| `search` | string | No | — | Filter URLs by search term |
+| `limit` | number | No | `50` | Max URLs (1-100) |
+| `include_subdomains` | boolean | No | `false` | Include subdomain URLs |
 
 ### `novada_research`
 
-Multi-step web research. Performs multiple searches, synthesizes findings into a report with sources.
+Multi-step web research. Runs 3-6 parallel searches, deduplicates, returns a cited report.
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `question` | string | Yes | — | Research question (min 5 characters) |
-| `depth` | string | No | `"quick"` | Research depth: `quick` (3 searches) or `deep` (5-6 searches) |
+| `question` | string | Yes | — | Research question (min 5 chars) |
+| `depth` | string | No | `"quick"` | `quick` (3 searches) or `deep` (5-6) |
 
-## Examples (Real Output)
-
-### Search: "best AI agent frameworks 2025"
-
-```
-> novada_search({ query: "best AI agent frameworks 2025", num: 5 })
-
-1. Best AI Agent Frameworks in 2025: A Comprehensive Guide
-   URL: https://www.reddit.com/r/AI_Agents/comments/1hq9il6/...
-   Here's a look at some of the standout frameworks making waves
-   this year: Microsoft AutoGen, Phidata, PromptFlow, OpenAI Swarm.
-
-2. What's the best agent framework in 2025? : r/LLMDevs
-   URL: https://www.reddit.com/r/LLMDevs/comments/1nxlsrq/...
-   I'm diving into autonomous/AI agent systems and trying to figure
-   out which framework is currently the best for building robust,
-   scalable, multi-agent systems.
-
-3. Top AI Agent Frameworks in 2025: Honest Reviews
-   URL: https://buildwithcham.medium.com/...
-   LangGraph for complex, multi-step flows. CrewAI for fast
-   role-based agents. Superagent for anything production-grade.
-
-4. The Ultimate Guide to Agentic AI Frameworks in 2025
-   URL: https://pub.towardsai.net/...
-   Goal-Oriented Thinking. Agents understand objectives, not just
-   commands; They break down complex tasks into subtasks.
-```
-
-### Extract: novada.com
-
-```
-> novada_extract({ url: "https://www.novada.com" })
-
-# Novada Proxy Network | Fast Residential, ISP & Datacenter Proxies
-
-> Access over 100M+ residential, ISP, and datacenter proxies with
-> 99.99% uptime. Novada delivers fast, secure, and scalable proxy
-> & web scraping solutions for global businesses and developers.
-
-## Content
-Proxy Locations: Europe (France, Italy, Germany, Spain, Ukraine),
-North America (USA, Canada, Mexico), South America (Brazil, Argentina)...
-
-## Links (20)
-- https://www.novada.com/residential-proxies
-- https://www.novada.com/scraper-api
-- https://www.novada.com/browser-api
-...
-```
-
-### Research: "How do AI agents use web scraping APIs?"
-
-```
-> novada_research({ question: "How do AI agents use web scraping APIs in production?", depth: "quick" })
-
-# Research Report: How do AI agents use web scraping APIs in production?
-
-Depth: quick | Searches: 3 | Results found: 11 | Unique sources: 10
-
-## Key Findings
-
-1. How AI Agents Are Changing the Future of Web Scraping
-   https://medium.com/@davidfagb/...
-   Instead of using fixed scripts that stop working when a webpage
-   changes, these agents can think, understand, and adjust, making
-   data extraction more reliable.
-
-2. AI Agent Web Scraping: Data Collection and Analysis
-   https://scrapegraphai.com/blog/ai-agent-webscraping
-   Discover how AI agents are transforming web scraping and data
-   collection. Build intelligent scrapers that adapt, extract,
-   and analyze data automatically.
-
-3. Scaling Web Scraping with Data Streaming, Agentic AI
-   https://www.confluent.io/blog/real-time-web-scraping/
-   We built AI Agents to iteratively create code, crawl, and
-   scrape web data at scale using real-time streaming pipelines.
-
-## Sources
-1. [How AI Agents Are Changing Web Scraping](https://medium.com/...)
-2. [AI Agent Web Scraping](https://scrapegraphai.com/...)
-3. [Scaling Web Scraping with Agentic AI](https://www.confluent.io/...)
-...
-```
+---
 
 ## Use Cases
 
-### For AI Agent Developers
-
 | Use Case | Tools | How It Works |
 |----------|-------|-------------|
-| **RAG pipeline data source** | `novada_search` + `novada_extract` | Agent searches for relevant documents, extracts full text, feeds into vector database for retrieval-augmented generation |
-| **Agentic web research** | `novada_research` | Agent receives a complex question, Novada runs multi-step searches and returns a synthesized report with citations — no manual search loop needed |
-| **Real-time knowledge grounding** | `novada_search` | Agent needs facts beyond its training cutoff — one tool call returns current, structured web results |
-| **Tool-augmented chatbots** | `novada_search` + `novada_extract` | Chatbot detects user question needs live data, calls Novada, presents fresh answer with source URLs |
-| **Automated competitive intelligence** | `novada_crawl` + `novada_extract` | Agent crawls competitor websites weekly, extracts pricing/feature changes, generates diff reports |
+| **RAG pipeline** | `search` + `extract` | Search → extract full text → vector DB |
+| **Agentic research** | `research` | One call → multi-source report with citations |
+| **Real-time grounding** | `search` | Facts beyond training cutoff |
+| **Competitive intel** | `crawl` + `extract` | Crawl competitor sites → extract changes |
+| **Lead generation** | `search` | Structured company/product lists |
+| **SEO tracking** | `search` | Keywords across 5 engines, 195 countries |
+| **Site audit** | `map` | Discover all pages before extracting |
+| **Fact-checking** | `search` | Claim → evidence search → verdict |
 
-### For Data Engineers & Analysts
+---
 
-| Use Case | Tools | How It Works |
-|----------|-------|-------------|
-| **Lead generation** | `novada_search` | Search "SaaS companies using AI in healthcare" → structured list of companies with URLs for enrichment |
-| **Price monitoring** | `novada_extract` | Extract product prices from e-commerce URLs on a schedule, detect price changes |
-| **Content aggregation** | `novada_crawl` | Crawl a documentation site (max 20 pages) to build a local knowledge base or training dataset |
-| **Multi-market SEO tracking** | `novada_search` | Track keyword rankings across Google, Bing, Yandex, DuckDuckGo from different countries simultaneously |
-| **News monitoring** | `novada_search` | Monitor breaking news on any topic across multiple search engines in real time |
-
-### For LLM Application Builders
-
-| Use Case | Tools | How It Works |
-|----------|-------|-------------|
-| **LangChain / LlamaIndex tool** | Any | Wrap Novada MCP tools as LangChain tools — agent decides when to search, extract, or research |
-| **Multi-agent workflows** | `novada_research` | Research agent gathers data, analyst agent processes it, writer agent produces report — Novada powers the data layer |
-| **Fact-checking pipeline** | `novada_search` | LLM generates a claim, agent searches for supporting/contradicting evidence, returns verdict with sources |
-| **Document Q&A with web fallback** | `novada_search` + `novada_extract` | If local documents don't have the answer, agent falls back to web search and extraction |
-| **Automated due diligence** | `novada_crawl` + `novada_research` | Crawl a company's website, research their market position, generate investment memo |
-
-### Workflow Examples
-
-**Example 1: AI Research Assistant**
-```
-User: "What are the latest developments in quantum computing?"
-Agent: novada_research({ question: "latest quantum computing breakthroughs 2025 2026", depth: "deep" })
-→ Returns 15+ sources, synthesized report, key findings
-→ Agent summarizes and presents with citations
-```
-
-**Example 2: Competitive Analysis Pipeline**
-```
-Agent: novada_search({ query: "top web scraping APIs comparison" })
-→ Gets list of competitors
-Agent: novada_extract({ url: "https://competitor.com/pricing" })
-→ Extracts pricing details from each competitor
-Agent: Compiles comparison table with pricing, features, limits
-```
-
-**Example 3: Knowledge Base Builder**
-```
-Agent: novada_crawl({ url: "https://docs.example.com", max_pages: 20, strategy: "bfs" })
-→ Crawls entire documentation site
-→ Returns structured content from each page
-Agent: Chunks content, generates embeddings, stores in vector DB
-```
-
-## Why Novada for AI Agents?
-
-### vs. Direct Web Scraping
-
-| | Direct Scraping | Novada MCP |
-|---|---|---|
-| Setup time | Hours (Playwright, proxies, anti-bot) | 1 command |
-| Blocked by websites | Frequently | Rarely (100M+ rotating IPs) |
-| Structured output | Raw HTML to parse | Clean text, titles, links |
-| Multi-engine search | Build each integration | 5 engines, one API |
-| Maintenance | Scripts break when sites change | Novada handles it |
-
-### vs. Other MCP Search Tools
+## Why Novada?
 
 | Feature | Novada | Tavily | Firecrawl | Brave Search |
 |---------|--------|--------|-----------|-------------|
-| Web search | Google + Bing (3 more available) | 1 engine | No | 1 engine |
+| Web search | **5 engines** | 1 engine | 1 engine | 1 engine |
 | URL extraction | Yes | Yes | Yes | No |
-| Website crawling | Yes (BFS/DFS) | Yes | Yes | No |
-| Multi-step research | Yes | Yes | No | No |
-| Proxy infrastructure | 100M+ IPs, 195 countries | No | No | No |
-| Anti-bot bypass | Built-in | No | Partial | No |
-| Browser rendering | No (static HTML) | No | Yes | No |
-| Localized results | Country + language | Country | No | Country |
-| Free tier | Yes | Yes | Yes | Yes |
+| Website crawling | BFS/DFS | Yes | Yes (async) | No |
+| URL mapping | Yes | Yes | Yes | No |
+| Research | Yes | Yes | No | No |
+| Geo-targeting | **195 countries** | Country param | No | Country param |
+| Anti-bot | Proxy (100M+ IPs) | No | Browser (headless Chrome) | No |
+| **CLI** | **`nova` command** | No | No | No |
 
-### Key Advantages
-
-- **Multi-engine search** — Google (recommended) and Bing fully supported. DuckDuckGo, Yahoo, Yandex available but may have limited reliability depending on Novada's upstream API status.
-- **100M+ proxy IPs across 195 countries** — Access any website without blocks, CAPTCHAs, or rate limits. Novada's global proxy infrastructure powers your agent's web access.
-- **Built for agents, not humans** — MCP-native from day one. Structured responses, no HTML parsing, no browser automation code needed.
-- **Research mode** — Your agent asks one question, Novada performs 3-8 searches, deduplicates sources, and returns a synthesized report. No manual search loops.
-- **99.99% uptime** — Production-grade infrastructure trusted by thousands of global businesses and developers.
-- **Privacy-first** — Novada does not store or log your search queries or extracted content. Your agent's data stays yours.
-- **Active development** — New tools and capabilities added regularly. Built by the team behind [novada.com](https://www.novada.com/).
+---
 
 ## Prerequisites
 
-- [Novada API key](https://www.novada.com/) — sign up for free
-- [Node.js](https://nodejs.org/) v18 or higher
+- **API key** — [Sign up free at novada.com](https://www.novada.com/)
+- **Node.js** v18+
 
-## Running with NPX
+---
+
+## 中文文档
+
+<details>
+<summary><strong>点击展开完整中文文档</strong></summary>
+
+### 简介
+
+Novada MCP Server 是一个模型上下文协议 (MCP) 服务器，让 AI 代理实时访问互联网 — 搜索、提取、爬取、映射和研究网络内容。所有请求通过 Novada 的代理基础设施（1亿+ IP，195 个国家，反机器人绕过）路由。
+
+### 快速开始
 
 ```bash
-NOVADA_API_KEY=your-key npx -y novada-mcp@latest
+npm install -g novada-mcp
+export NOVADA_API_KEY=你的密钥    # 在 novada.com 免费获取
+
+nova search "杜塞尔多夫最好的甜点" --country de
+nova extract https://example.com
+nova map https://docs.example.com --search "api"
+nova research "AI 代理如何使用网络抓取？" --depth deep
 ```
 
-## CLI Options
+### 连接到 Claude Code
 
 ```bash
-npx novada-mcp --help        # Show help
-npx novada-mcp --list-tools  # List available tools
+claude mcp add novada -e NOVADA_API_KEY=你的密钥 -- npx -y novada-mcp
 ```
 
-## About Novada
+### 工具
 
-[Novada](https://www.novada.com/) provides web data infrastructure for developers and AI agents — including residential proxies, scraping APIs, and browser automation across 195+ countries with 100M+ IPs.
+| 工具 | 功能 | 参数 |
+|------|------|------|
+| `novada_search` | 通过 5 个搜索引擎搜索网络 | `query` (必填), `engine`, `num`, `country`, `language` |
+| `novada_extract` | 从任意 URL 提取主要内容 | `url` (必填), `format` |
+| `novada_crawl` | 爬取网站并发提取多页内容 | `url` (必填), `max_pages`, `strategy` |
+| `novada_map` | 发现网站所有 URL（不提取内容） | `url` (必填), `search`, `limit` |
+| `novada_research` | 多步骤研究，返回带引用的报告 | `question` (必填), `depth` |
 
-## Acknowledgments
+### 用例
 
-- [Model Context Protocol](https://modelcontextprotocol.io) for the MCP specification
-- [Anthropic](https://anthropic.com) for Claude Desktop and Claude Code
+| 用例 | 工具 | 说明 |
+|------|------|------|
+| RAG 数据管道 | `search` + `extract` | 搜索 → 提取全文 → 向量数据库 |
+| 智能研究 | `research` | 一次调用 → 多源综合报告 |
+| 实时知识 | `search` | 获取训练截止日期之后的事实 |
+| 竞品分析 | `crawl` + `extract` | 爬取竞品网站 → 提取变化 |
+| 获客线索 | `search` | 结构化的公司/产品列表 |
+| SEO 追踪 | `search` | 跨 5 个引擎、195 个国家追踪关键词 |
+
+### 为什么选择 Novada？
+
+| 特性 | Novada | Tavily | Firecrawl |
+|------|--------|--------|-----------|
+| 搜索引擎 | **5 个** | 1 个 | 1 个 |
+| 地理定向 | **195 个国家** | 国家参数 | 无 |
+| 反机器人 | 代理 (1亿+ IP) | 无 | 浏览器 |
+| CLI 工具 | **`nova` 命令** | 无 | 无 |
+
+### 前置要求
+
+- **API 密钥** — [在 novada.com 免费注册](https://www.novada.com/)
+- **Node.js** v18+
+
+</details>
+
+---
+
+## About
+
+[Novada](https://www.novada.com/) — web data infrastructure for developers and AI agents. 100M+ proxy IPs, 195 countries.
 
 ## License
 

@@ -1,16 +1,23 @@
 {
   "name": "novada-mcp",
-  "version": "0.4.1",
-  "description": "MCP Server for Novada — real-time web data API for AI agents. Search, extract, crawl, and research the web.",
+  "version": "0.6.4",
+  "description": "MCP server for web search, extraction, crawling, and research — powered by Novada's 100M+ proxy IPs across 195 countries. Works with Claude, Cursor, VS Code, and any MCP client.",
+  "mcpName": "io.github.goldentrii/novada-mcp",
   "type": "module",
   "bin": {
-    "novada-mcp": "build/index.js"
+    "novada-mcp": "build/index.js",
+    "nova": "build/cli.js"
   },
   "files": [
-    "build"
+    "build",
+    "server.json"
   ],
   "scripts": {
-    "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
+    "build": "tsc && node -e \"require('fs').chmodSync('build/index.js','755');require('fs').chmodSync('build/cli.js','755')\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "tsc --noEmit",
     "prepare": "npm run build",
     "watch": "tsc --watch",
     "inspector": "npx @modelcontextprotocol/inspector build/index.js",
@@ -33,10 +40,13 @@
     "claude",
     "cursor",
     "vscode",
+    "windsurf",
     "llm-tools",
     "rag",
     "proxy",
     "anti-bot",
+    "data-extraction",
+    "web-data",
     "tavily-alternative",
     "firecrawl-alternative",
     "exa-alternative",
@@ -44,16 +54,28 @@
   ],
   "author": "Novada <support@novada.com>",
   "license": "MIT",
+  "homepage": "https://www.novada.com",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Goldentrii/novada-mcp.git"
   },
+  "bugs": {
+    "url": "https://github.com/Goldentrii/novada-mcp/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.26.0",
-    "axios": "^1.7.0"
+    "axios": "^1.15.0",
+    "cheerio": "^1.2.0",
+    "zod": "^4.3.6",
+    "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
     "@types/node": "^20.11.24",
-    "typescript": "^5.3.3"
+    "@vitest/coverage-v8": "^3.1.0",
+    "typescript": "^5.3.3",
+    "vitest": "^3.1.0"
   }
 }

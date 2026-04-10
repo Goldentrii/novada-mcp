@@ -1,30 +1,30 @@
-import { fetchWithRetry, USER_AGENT } from "../utils/index.js";
+import { fetchWithRetry, USER_AGENT, cleanParams } from "../utils/index.js";
 import { SCRAPER_API_BASE } from "../config.js";
 import type { SearchParams, NovadaApiResponse, NovadaSearchResult } from "./types.js";
 
 export async function novadaSearch(params: SearchParams, apiKey: string): Promise<string> {
   const engine = params.engine || "google";
-  const searchParams = new URLSearchParams({
+
+  // Build params, then clean empty values before sending
+  const rawParams: Record<string, string> = {
     q: params.query,
     api_key: apiKey,
     engine,
     num: String(params.num || 10),
-  });
+    country: params.country || "",
+    language: params.language || "",
+  };
 
-  // Bing: force English locale to avoid irrelevant localized results
+  // Bing: set locale-specific params
   if (engine === "bing") {
-    searchParams.set("country", params.country || "us");
-    searchParams.set("language", params.language || "en");
-    searchParams.set(
-      "mkt",
-      params.language
-        ? `${params.language}-${(params.country || "us").toUpperCase()}`
-        : "en-US"
-    );
-  } else {
-    if (params.country) searchParams.set("country", params.country);
-    if (params.language) searchParams.set("language", params.language);
+    if (!rawParams.country) rawParams.country = "us";
+    if (!rawParams.language) rawParams.language = "en";
+    rawParams.mkt = `${rawParams.language}-${rawParams.country.toUpperCase()}`;
   }
+
+  // Remove empty strings — don't send blank country/language to API
+  const cleaned = cleanParams(rawParams) as Record<string, string>;
+  const searchParams = new URLSearchParams(cleaned);
 
   const response = await fetchWithRetry(
     `${SCRAPER_API_BASE}/search?${searchParams.toString()}`,
@@ -50,13 +50,18 @@ export async function novadaSearch(params: SearchParams, apiKey: string): Promis
     return "No results found for this query.";
   }
 
-  return results
+  // Structured metadata header for agent decision-making
+  const meta = `[Results: ${results.length} | Engine: ${engine}${params.country ? ` | Country: ${params.country}` : ""} | Via: Novada proxy]`;
+
+  const formatted = results
     .map((r: NovadaSearchResult, i: number) => {
       let url: string = r.url || r.link || "N/A";
       url = unwrapBingUrl(url);
       return `${i + 1}. **${r.title || "Untitled"}**\n   URL: ${url}\n   ${r.description || r.snippet || "No description"}`;
     })
     .join("\n\n");
+
+  return `${meta}\n\n${formatted}`;
 }
 
 /** Unwrap Bing redirect/base64 encoded URLs */

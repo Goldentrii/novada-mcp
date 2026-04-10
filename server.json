@@ -1,0 +1,53 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.goldentrii/novada-mcp",
+  "description": "Search the web (5 engines), extract content from any URL, crawl websites, map site structure, and run multi-step research — routed through 100M+ proxy IPs across 195 countries with anti-bot bypass.",
+  "repository": {
+    "url": "https://github.com/Goldentrii/novada-mcp",
+    "source": "github"
+  },
+  "version": "0.6.0",
+  "tools": [
+    {
+      "name": "novada_search",
+      "description": "Search the web via Google, Bing, DuckDuckGo, Yahoo, or Yandex with structured results"
+    },
+    {
+      "name": "novada_extract",
+      "description": "Extract main content, title, description, and links from any URL"
+    },
+    {
+      "name": "novada_crawl",
+      "description": "Crawl a website (BFS/DFS) and extract content from multiple pages"
+    },
+    {
+      "name": "novada_map",
+      "description": "Discover all URLs on a website without extracting content"
+    },
+    {
+      "name": "novada_research",
+      "description": "Multi-step web research with parallel queries, deduplication, and citations"
+    }
+  ],
+  "categories": ["web-search", "web-scraping", "research", "data-extraction"],
+  "topics": ["search", "extract", "crawl", "map", "research", "proxy", "anti-bot", "geo-targeting", "rag", "ai-agents"],
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "novada-mcp",
+      "version": "0.6.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "NOVADA_API_KEY",
+          "description": "Your Novada API key from https://www.novada.com",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import { fetchWithRetry, extractMainContent, extractTitle, normalizeUrl, isContentLink } from "../utils/index.js";
+import { fetchViaProxy, extractMainContent, extractTitle, extractLinks, normalizeUrl, isContentLink } from "../utils/index.js";
 import type { CrawlParams } from "./types.js";
 
 const CRAWL_CONCURRENCY = 3;
@@ -11,9 +11,9 @@ interface CrawlResult {
   wordCount: number;
 }
 
-async function fetchPage(url: string): Promise<{ html: string; url: string } | null> {
+async function fetchPage(url: string, apiKey?: string): Promise<{ html: string; url: string } | null> {
   try {
-    const response = await fetchWithRetry(url, { timeout: 15000, maxRedirects: 3 });
+    const response = await fetchViaProxy(url, apiKey, { timeout: 15000, maxRedirects: 3 });
     if (typeof response.data !== "string") return null;
     return { html: response.data, url };
   } catch {
@@ -21,7 +21,7 @@ async function fetchPage(url: string): Promise<{ html: string; url: string } | n
   }
 }
 
-export async function novadaCrawl(params: CrawlParams): Promise<string> {
+export async function novadaCrawl(params: CrawlParams, apiKey?: string): Promise<string> {
   const maxPages = Math.min(params.max_pages || 5, 20);
   const visited = new Set<string>();
   const queue: { url: string; depth: number }[] = [
@@ -44,7 +44,7 @@ export async function novadaCrawl(params: CrawlParams): Promise<string> {
     if (batch.length === 0) break;
 
     // Fetch pages concurrently
-    const pages = await Promise.all(batch.map((item) => fetchPage(item.url)));
+    const pages = await Promise.all(batch.map((item) => fetchPage(item.url, apiKey)));
 
     for (let i = 0; i < pages.length; i++) {
       const page = pages[i];
@@ -58,19 +58,14 @@ export async function novadaCrawl(params: CrawlParams): Promise<string> {
 
       results.push({ url: batch[i].url, title, text, depth: batch[i].depth, wordCount });
 
-      // Discover same-domain content links
-      const linkMatches = page.html.matchAll(/href=["'](https?:\/\/[^"'#]+)["']/gi);
-      for (const match of linkMatches) {
+      // Discover same-domain links using cheerio-based extraction
+      const links = extractLinks(page.html, batch[i].url);
+      for (const link of links) {
         try {
-          const linkUrl = new URL(match[1]);
-          const linkHostname = linkUrl.hostname.replace(/^www\./, "");
-          const normalizedLink = normalizeUrl(linkUrl.href);
-          if (
-            linkHostname === baseHostname &&
-            !visited.has(normalizedLink) &&
-            isContentLink(linkUrl.href)
-          ) {
-            queue.push({ url: linkUrl.href, depth: batch[i].depth + 1 });
+          const linkHostname = new URL(link).hostname.replace(/^www\./, "");
+          const normalizedLink = normalizeUrl(link);
+          if (linkHostname === baseHostname && !visited.has(normalizedLink) && isContentLink(link)) {
+            queue.push({ url: link, depth: batch[i].depth + 1 });
           }
         } catch {
           // Invalid URL, skip
