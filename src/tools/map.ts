@@ -4,7 +4,8 @@ import type { MapParams } from "./types.js";
 /**
  * Map a website to discover all URLs on the site.
  * BFS crawl that only collects links without extracting content.
- * Much faster than crawl — use this to discover pages before scraping.
+ * Uses path-diverse queuing: limits URLs per path prefix to ensure
+ * the map covers the full site structure, not just one deep section.
  */
 export async function novadaMap(params: MapParams, apiKey?: string): Promise<string> {
   const maxUrls = Math.min(params.limit || 50, 100);
@@ -13,7 +14,11 @@ export async function novadaMap(params: MapParams, apiKey?: string): Promise<str
   const queue: string[] = [params.url];
   const baseHostname = new URL(params.url).hostname.replace(/^www\./, "");
 
-  // Add seed URL (normalized for consistent dedup)
+  // Track how many URLs discovered per top-level path prefix
+  // This prevents /locations/* from consuming the entire limit
+  const prefixCounts = new Map<string, number>();
+  const MAX_PER_PREFIX = Math.max(3, Math.floor(maxUrls / 5));
+
   discovered.add(normalizeUrl(params.url));
 
   while (queue.length > 0 && discovered.size < maxUrls) {
@@ -30,15 +35,25 @@ export async function novadaMap(params: MapParams, apiKey?: string): Promise<str
       for (const link of links) {
         if (discovered.size >= maxUrls) break;
         try {
-          const linkHostname = new URL(link).hostname.replace(/^www\./, "");
+          const linkUrl = new URL(link);
+          const linkHostname = linkUrl.hostname.replace(/^www\./, "");
           const isSameDomain = linkHostname === baseHostname;
           const isSubdomain = linkHostname.endsWith(`.${baseHostname}`);
 
           if ((isSameDomain || (params.include_subdomains && isSubdomain)) && isContentLink(link)) {
             const normalizedLink = normalizeUrl(link);
             if (!discovered.has(normalizedLink) && !visited.has(normalizedLink)) {
-              discovered.add(normalizedLink);
-              queue.push(link);
+              // Path diversity: limit URLs per prefix
+              const pathParts = linkUrl.pathname.split("/").filter(Boolean);
+              const prefix = pathParts.length > 0 ? `/${pathParts[0]}` : "/";
+              const count = prefixCounts.get(prefix) || 0;
+
+              if (count < MAX_PER_PREFIX) {
+                prefixCounts.set(prefix, count + 1);
+                discovered.add(normalizedLink);
+                queue.push(link);
+              }
+              // If prefix is full, skip this URL but don't stop — other prefixes may have room
             }
           }
         } catch {

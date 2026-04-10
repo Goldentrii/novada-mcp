@@ -146,31 +146,45 @@ export function extractDescription(html: string): string {
   ).trim();
 }
 
-/** Extract all meaningful links from HTML */
+/** Resolve a single href to an absolute URL */
+function resolveHref(href: string, baseUrl?: string): string | null {
+  if (href.startsWith("#") || href.startsWith("javascript:") || href.startsWith("mailto:")) return null;
+  if (href.startsWith("//")) return `https:${href}`;
+  if (baseUrl && !href.startsWith("http")) {
+    try { return new URL(href, baseUrl).href; }
+    catch { return null; }
+  }
+  return href.startsWith("http") ? href : null;
+}
+
+/**
+ * Extract all meaningful links from HTML.
+ * Navigation links (from <nav>, <header>) are returned first for better site mapping.
+ */
 export function extractLinks(html: string, baseUrl?: string): string[] {
   if (!html) return [];
   const $ = cheerio.load(html);
-  const links = new Set<string>();
+  const navLinks: string[] = [];
+  const bodyLinks: string[] = [];
+  const seen = new Set<string>();
 
-  $("a[href]").each((_, el) => {
-    const href = $(el).attr("href");
-    if (!href) return;
-    // Skip anchors, javascript, mailto
-    if (href.startsWith("#") || href.startsWith("javascript:") || href.startsWith("mailto:")) return;
-
-    let fullUrl = href;
-    if (href.startsWith("//")) {
-      fullUrl = `https:${href}`;
-    } else if (baseUrl && !href.startsWith("http")) {
-      // Resolve relative URLs (both /absolute and relative paths)
-      try { fullUrl = new URL(href, baseUrl).href; }
-      catch { return; }
-    }
-
-    if (fullUrl.startsWith("http")) {
-      links.add(fullUrl);
+  // Priority 1: Navigation and header links (site structure)
+  $("nav a[href], header a[href], [role='navigation'] a[href]").each((_, el) => {
+    const url = resolveHref($(el).attr("href") || "", baseUrl);
+    if (url && !seen.has(url)) {
+      seen.add(url);
+      navLinks.push(url);
     }
   });
 
-  return [...links].slice(0, 50);
+  // Priority 2: All other links
+  $("a[href]").each((_, el) => {
+    const url = resolveHref($(el).attr("href") || "", baseUrl);
+    if (url && !seen.has(url)) {
+      seen.add(url);
+      bodyLinks.push(url);
+    }
+  });
+
+  return [...navLinks, ...bodyLinks].slice(0, 50);
 }
