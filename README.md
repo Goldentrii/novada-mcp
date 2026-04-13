@@ -26,10 +26,11 @@
 <p align="center">
   <a href="#nova--try-it-in-10-seconds">Quick Start</a> ·
   <a href="#tools">Tools</a> ·
+  <a href="#prompts">Prompts</a> ·
+  <a href="#resources">Resources</a> ·
   <a href="#real-output-examples">Examples</a> ·
   <a href="#use-cases">Use Cases</a> ·
   <a href="#why-novada">Comparison</a> ·
-  <a href="#nova--try-it-in-10-seconds">CLI</a> ·
   <a href="#中文文档">中文</a>
 </p>
 
@@ -42,19 +43,13 @@ npm install -g novada-mcp
 export NOVADA_API_KEY=your-key    # Free at novada.com
 ```
 
-<p align="center">
-  <img src="https://img.shields.io/badge/nova_search-query-blue?style=for-the-badge" alt="nova search">
-  <img src="https://img.shields.io/badge/nova_extract-url-green?style=for-the-badge" alt="nova extract">
-  <img src="https://img.shields.io/badge/nova_crawl-url-orange?style=for-the-badge" alt="nova crawl">
-  <img src="https://img.shields.io/badge/nova_map-url-blueviolet?style=for-the-badge" alt="nova map">
-  <img src="https://img.shields.io/badge/nova_research-question-red?style=for-the-badge" alt="nova research">
-</p>
-
 ```bash
 nova search "best desserts in Düsseldorf" --country de
+nova search "AI funding news" --time week --include "techcrunch.com,wired.com"
 nova extract https://example.com
-nova map https://docs.example.com --search "api"
-nova research "How do AI agents use web scraping?" --depth deep
+nova crawl https://docs.example.com --max-pages 10 --select "/api/.*"
+nova map https://docs.example.com --search "webhook" --max-depth 3
+nova research "How do AI agents use web scraping?" --depth deep --focus "production use cases"
 ```
 
 ---
@@ -64,62 +59,78 @@ nova research "How do AI agents use web scraping?" --depth deep
 ### `nova search "best desserts in Düsseldorf" --country de`
 
 ```
-[Results: 4 | Engine: google | Country: de | Via: Novada proxy]
+## Search Results
+results:3 | engine:google | country:de
 
-1. **THE BEST Dessert in Düsseldorf**
-   URL: https://www.tripadvisor.com/Restaurants-g187373-zfg9909-Dusseldorf...
-   Dessert in Düsseldorf:
-   1. Heinemann Konditorei Confiserie (4.4★, 298 reviews)
-   2. Eis-Café Pia (4.5★, 182 reviews)
-   3. Cafe Huftgold (4.3★)
+---
 
-2. **Top 10 Best Desserts Near Dusseldorf**
-   URL: https://www.yelp.com/search?cflt=desserts&find_loc=Dusseldorf...
-   1. Namu Café  2. Pure Pastry  3. Tenten Coffee
-   4. Eiscafé Pia  5. Pure ...
+### 1. THE BEST Dessert in Düsseldorf
+url: https://www.tripadvisor.com/Restaurants-g187373-zfg9909-Dusseldorf...
+snippet: Heinemann Konditorei Confiserie (4.4★), Eis-Café Pia (4.5★), Cafe Huftgold (4.3★)
 
-3. **Good Dessert Spots : r/duesseldorf**
-   URL: https://www.reddit.com/r/duesseldorf/comments/1mxh4bj/...
-   "I'm moving to Düsseldorf soon and I love trying out desserts!
-    Do you guys know any good spots/cafes?"
-```
+### 2. Top 10 Best Desserts Near Dusseldorf
+url: https://www.yelp.com/search?cflt=desserts&find_loc=Dusseldorf...
+snippet: Namu Café, Pure Pastry, Tenten Coffee, Eiscafé Pia...
 
-Your agent can then **extract** any URL for full details, or **research** deeper:
+### 3. Good Dessert Spots : r/duesseldorf
+url: https://www.reddit.com/r/duesseldorf/comments/1mxh4bj/...
+snippet: "I'm moving to Düsseldorf soon and I love trying out desserts! Do you guys know any good spots?"
 
-```bash
-nova extract https://www.tripadvisor.com/Restaurants-g187373-zfg9909-Dusseldorf...
-nova research "best German pastries and cafes in Düsseldorf NRW" --depth deep
+---
+## Agent Hints
+- To read any result in full: `novada_extract` with its url
+- To batch-read multiple results: `novada_extract` with `url=[url1, url2, ...]`
+- For deeper multi-source research: `novada_research`
 ```
 
 ### `nova research "How do AI agents use web scraping?" --depth deep`
 
 ```
-# Research Report: How do AI agents use web scraping?
+## Research Report
+question: "How do AI agents use web scraping?"
+depth:deep (auto-selected) | searches:6 | results:28 | unique_sources:15
 
-**Depth:** deep | **Searches:** 6 | **Results found:** 23 | **Unique sources:** 15
+---
+
+## Search Queries Used
+
+1. How do AI agents use web scraping?
+2. ai agents web scraping overview explained
+3. ai agents web scraping vs alternatives comparison
+4. ai agents web scraping best practices real world production use cases
+5. ai agents web scraping challenges limitations
+6. "ai" "agents" site:reddit.com OR site:news.ycombinator.com
 
 ## Key Findings
+
 1. **How AI Agents Are Changing the Future of Web Scraping**
    https://medium.com/@davidfagb/...
-   These agents can think, understand, and adjust...
+   These agents can think, understand, and adjust to changes in web structure...
 
 2. **Scaling Web Scraping with Data Streaming, Agentic AI**
    https://www.confluent.io/blog/real-time-web-scraping/
    AI Agents iteratively create code, crawl, and scrape at scale...
 
 ## Sources
+
 1. [How AI Agents Are Changing Web Scraping](https://medium.com/...)
 2. [Scaling Web Scraping with Agentic AI](https://www.confluent.io/...)
+
+---
+## Agent Hints
+- 15 sources found. Extract the most relevant with: `novada_extract` with url=[url1, url2]
+- For narrower research: add `focus` param to guide sub-query generation.
+- For more coverage: use depth='comprehensive' (8-10 searches).
 ```
 
-### Map → Extract Workflow
+### Map → Batch Extract Workflow
 
 ```bash
 # Step 1: Discover pages
-nova map https://docs.example.com --search "webhook"
+nova map https://docs.example.com --search "webhook" --max-depth 3
 
-# Step 2: Extract what you need
-nova extract https://docs.example.com/webhooks/events
+# Step 2: Batch-extract multiple pages in one call
+nova extract https://docs.example.com/webhooks/events https://docs.example.com/webhooks/retry
 ```
 
 ---
@@ -251,18 +262,66 @@ Multi-step web research. Runs 3-10 parallel searches, deduplicates, returns a ci
 
 ---
 
+## Prompts
+
+MCP prompts are pre-built workflow templates visible in supported clients (Claude Desktop, LobeChat, etc.). They guide the agent through multi-step tasks automatically.
+
+### `research_topic`
+
+Deep multi-source research on any topic with optional country and focus constraints.
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `topic` | Yes | What to research |
+| `country` | No | Country context, e.g. `us`, `de`, `cn` |
+| `focus` | No | Focus area, e.g. `technical`, `market trends`, `recent news only` |
+
+### `extract_and_summarize`
+
+Extract content from one or more URLs and prepare a focused summary.
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `urls` | Yes | URL or comma-separated list of URLs |
+| `focus` | No | What aspect to focus on in the summary |
+
+### `site_audit`
+
+Map a website's structure then extract and summarize its key sections.
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `url` | Yes | Root URL of the site to audit |
+| `sections` | No | Sections to prioritize, e.g. `pricing, docs, api` |
+
+---
+
+## Resources
+
+MCP resources are read-only data that agents can access before deciding which tool to call. Available in any MCP client that supports resources.
+
+| URI | Name | Description |
+|-----|------|-------------|
+| `novada://engines` | Supported Search Engines | All 5 engines with characteristics and recommended use cases |
+| `novada://countries` | Supported Country Codes | Top 50 country codes for geo-targeted search (195 total) |
+| `novada://guide` | Agent Tool Selection Guide | Decision tree and workflow patterns for choosing the right tool |
+
+---
+
 ## Use Cases
 
 | Use Case | Tools | How It Works |
 |----------|-------|-------------|
-| **RAG pipeline** | `search` + `extract` | Search → extract full text → vector DB |
+| **RAG pipeline** | `search` + `extract` | Search → batch-extract full text → vector DB |
 | **Agentic research** | `research` | One call → multi-source report with citations |
 | **Real-time grounding** | `search` | Facts beyond training cutoff |
 | **Competitive intel** | `crawl` + `extract` | Crawl competitor sites → extract changes |
 | **Lead generation** | `search` | Structured company/product lists |
 | **SEO tracking** | `search` | Keywords across 5 engines, 195 countries |
-| **Site audit** | `map` | Discover all pages before extracting |
+| **Site audit** | `map` → `extract` | Discover all pages, then batch-extract targets |
 | **Fact-checking** | `search` | Claim → evidence search → verdict |
+| **Domain filtering** | `search` | `include_domains` to search only trusted sources |
+| **Trend monitoring** | `search` | `time_range=week` for recent-only results |
 
 ---
 
@@ -272,10 +331,14 @@ Multi-step web research. Runs 3-10 parallel searches, deduplicates, returns a ci
 |---------|--------|--------|-----------|-------------|
 | Web search | **5 engines** | 1 engine | 1 engine | 1 engine |
 | URL extraction | Yes | Yes | Yes | No |
+| Batch extraction | **Yes (10 URLs)** | No | Yes | No |
 | Website crawling | BFS/DFS | Yes | Yes (async) | No |
 | URL mapping | Yes | Yes | Yes | No |
 | Research | Yes | Yes | No | No |
+| MCP Prompts | **Yes (3)** | No | No | No |
+| MCP Resources | **Yes (3)** | No | No | No |
 | Geo-targeting | **195 countries** | Country param | No | Country param |
+| Domain filtering | **include/exclude** | No | No | No |
 | Anti-bot | Proxy (100M+ IPs) | No | Browser (headless Chrome) | No |
 | **CLI** | **`nova` command** | No | No | No |
 
@@ -304,9 +367,11 @@ npm install -g novada-mcp
 export NOVADA_API_KEY=你的密钥    # 在 novada.com 免费获取
 
 nova search "杜塞尔多夫最好的甜点" --country de
+nova search "AI 融资新闻" --time week
 nova extract https://example.com
-nova map https://docs.example.com --search "api"
-nova research "AI 代理如何使用网络抓取？" --depth deep
+nova crawl https://docs.example.com --max-pages 10 --select "/api/.*"
+nova map https://docs.example.com --search "api" --max-depth 3
+nova research "AI 代理如何使用网络抓取？" --depth deep --focus "生产用例"
 ```
 
 ### 连接到 Claude Code
@@ -325,22 +390,42 @@ claude mcp add novada -e NOVADA_API_KEY=你的密钥 -- npx -y novada-mcp
 | `novada_map` | 发现网站所有 URL（不提取内容） | `url` (必填), `search`, `limit`, `max_depth` |
 | `novada_research` | 多步骤研究，返回带引用的报告 | `question` (必填), `depth` (`auto`/`quick`/`deep`/`comprehensive`), `focus` |
 
+### Prompts（预置工作流）
+
+| Prompt | 功能 |
+|--------|------|
+| `research_topic` | 对任意主题进行深度多源研究，支持国家和焦点约束 |
+| `extract_and_summarize` | 提取一个或多个 URL 的内容并生成摘要 |
+| `site_audit` | 映射网站结构，然后提取并汇总关键部分 |
+
+### Resources（只读数据）
+
+| URI | 内容 |
+|-----|------|
+| `novada://engines` | 5 个搜索引擎的特性和使用场景 |
+| `novada://countries` | 195 个国家代码（地理定向搜索） |
+| `novada://guide` | 工具选择决策树和工作流模式 |
+
 ### 用例
 
 | 用例 | 工具 | 说明 |
 |------|------|------|
-| RAG 数据管道 | `search` + `extract` | 搜索 → 提取全文 → 向量数据库 |
+| RAG 数据管道 | `search` + `extract` | 搜索 → 批量提取全文 → 向量数据库 |
 | 智能研究 | `research` | 一次调用 → 多源综合报告 |
 | 实时知识 | `search` | 获取训练截止日期之后的事实 |
 | 竞品分析 | `crawl` + `extract` | 爬取竞品网站 → 提取变化 |
 | 获客线索 | `search` | 结构化的公司/产品列表 |
 | SEO 追踪 | `search` | 跨 5 个引擎、195 个国家追踪关键词 |
+| 域名过滤 | `search` | `include_domains` 只搜索可信来源 |
 
 ### 为什么选择 Novada？
 
 | 特性 | Novada | Tavily | Firecrawl |
 |------|--------|--------|-----------|
 | 搜索引擎 | **5 个** | 1 个 | 1 个 |
+| 批量提取 | **支持（10 URL）** | 不支持 | 支持 |
+| MCP Prompts | **3 个** | 无 | 无 |
+| MCP Resources | **3 个** | 无 | 无 |
 | 地理定向 | **195 个国家** | 国家参数 | 无 |
 | 反机器人 | 代理 (1亿+ IP) | 无 | 浏览器 |
 | CLI 工具 | **`nova` 命令** | 无 | 无 |
